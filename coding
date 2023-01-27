@@ -1,0 +1,436 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+///color pallete
+#define NORMAL  "\x1B[0m"
+#define RED  "\x1B[31m"
+#define GREEN  "\x1B[32m"
+#define YELLOW  "\x1B[33m"
+#define BLUE  "\x1B[34m"
+#define CYAN  "\x1B[36m"
+
+struct barang{
+    char id[10];
+    char nama[20];
+    char stok[5];
+    char stokTerjual[5];
+    char harga[10];
+};
+
+typedef struct barang barang;
+
+int countTotalBarang()
+{ ///akan mereturn jumlah barang dalam database
+    FILE *fptr;
+
+    fptr = fopen("dataBarang", "r");    ///operator "r" untuk membaca saja
+    fseek(fptr, 0, SEEK_END);   ///file pointer akan ditaruh dipaling belakang file (filePointer, jumlahByteYangDigeser, posisiAwalPointerSebelumDigeser)
+
+    return ftell(fptr)/sizeof(barang);  ///ftell akan mereturn banyaknya data yang ada, yang mana nilainya akan dibagi dengan ukuran "1" buah data, sehingga akan ditemukan banyak jumlah data
+}
+
+void show(bool isAscending)
+{   ///akan membuat tampilan (table)
+    int pilih, count=1, countBarang=countTotalBarang();
+    FILE *fptr;
+    barang br;
+    fptr = fopen("dataBarang", "r");  ///operaror "r" artinya file untuk dibaca saja
+
+    printf(NORMAL);
+    printf("\t\t\t------------------------------------------------------\n");
+    printf("\t\t\t|"CYAN"%-4s"NORMAL"| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", " No", "ID", "Nama", "Harga","Stok","Sell");
+    printf("\t\t\t------------------------------------------------------\n");
+
+    if(isAscending){        ///dari data terbaru
+        while(fread(&br, sizeof(barang), 1, fptr))    ///(dataTujuan, besarSatuBuahData(byte), besarDataYangDitulis, dataAsal)
+        {
+            printf("\t\t\t| "CYAN"%-3d"NORMAL"| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", count++, br.id, br.nama, br.harga, br.stok, br.stokTerjual);
+        }
+    }else                   ///dari data terlama (pembacaan dibalik)
+    {
+        fseek(fptr, -(sizeof(br)), SEEK_END); ///(dataAsal, jumlahByteYangDigeser(nilainyaNegatifAgarPenggeseranSemakinKekanan), pointerDisetPadaAkhirData)
+        for(int i=1; i<=countBarang; i++){
+            fread(&br, sizeof(barang), 1, fptr);  ///data akan dibaca seperti biasa
+            printf("\t\t\t| "CYAN"%-3d"NORMAL"| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", count++, br.id, br.nama, br.harga, br.stok, br.stokTerjual);
+            fseek(fptr, -2*sizeof(barang), SEEK_CUR); ///karena data telah dibaca pada fread, maka pointer berada pada posisi yang salah
+        }                                           ///Menggunakan fseek ini pointer akan dikembalikan ke posisi semula, yaitu -2 kali besarnya data
+    }
+    printf("\t\t\t------------------------------------------------------\n");
+    printf(NORMAL);
+    fclose(fptr);
+}
+
+void addBarang()
+{   ///untuk menambah barang
+    system("cls");
+    FILE *fptr;
+    barang br;      ///inisialisasi variable baru, untuk penyimpanan sementara
+    fptr = fopen("dataBarang", "a");    ///operator "a" untuk menulis data dari belakang file (data sebelumnya tidak akan hilang)
+    printf(GREEN"\n\t\t\tAdd Barang");
+    printf("\n\t\t\tMasukan data barang\n");
+
+    printf(YELLOW"\t\t\tID barang : ");     ///input kedalam variable sementara
+    scanf("%s", &br.id);
+    fflush(stdin);
+
+    printf("\t\t\tNama barang : ");
+    scanf("%s", &br.nama);
+    fflush(stdin);
+
+    printf("\t\t\tHarga barang : ");
+    scanf("%s", &br.harga);
+    fflush(stdin);
+
+    printf("\t\t\tStok barang : ");
+    scanf("%s", &br.stok);
+    fflush(stdin);
+
+    br.stokTerjual[0] = '0';
+
+    printf(CYAN"\n\t\t\tData berhasil ditambah"NORMAL);
+    fwrite(&br, sizeof(barang), 1, fptr);     ///dengan fungsi fwrite masukan data (dataYangAkanDimasukan, besarUkuranDataDimasukan(byte), besarDataYangAkanDikirim, fileTujuan)
+    fclose(fptr);
+}
+
+
+void editBarang()
+{   ///untuk mengubah data (edit)
+    system("cls");
+    FILE *fptr, *fptr1;     ///dibuat 2 file pointer
+    barang br;
+    char id[10];
+    char yesOrNo;
+    bool isFound=false;
+
+    fptr = fopen("dataBarang", "r");    ///data base asli
+    fptr1 = fopen("helper", "w");       ///data base sementara (untuk membantu pemrosesan file)
+
+    printf(GREEN"\n\t\t\tUbah Data");
+    printf(YELLOW"\n\t\t\tMasukan ID barang ");
+    scanf("%s", &id);
+    fflush(stdin);
+
+    while(fread(&br, sizeof(barang), 1, fptr)){         ///lakukan pembacaan data dari fptr kedalam dt
+        if(strcmp(strlwr(br.id), strlwr(id))==0){       ///saat melakukan pembacaan lakukan pengecekan, apakah data id sama dengan data pada database index n?
+            isFound=true;                               ///jika sama berarti itu data yang akan kita ganti
+                                                        ///maka masukan data baru kedalam dt
+            printf(GREEN"\n\t\t\t%s | Edit id <y/n>? ",br.id);
+            scanf("%s", &yesOrNo);
+            if(yesOrNo=='y' || yesOrNo=='Y'){
+                printf(YELLOW"\t\t\tMasukan ID baru : ");
+                scanf("%s", &br.id);
+                fflush(stdin);
+            }
+
+            printf(GREEN"\t\t\t%s | Edit Nama <y/n>? ",br.nama);
+            scanf("%s", &yesOrNo);
+            if(yesOrNo=='y' || yesOrNo=='Y'){
+                printf(YELLOW"\t\t\tMasukan Nama baru : ");
+                scanf("%s", &br.nama);
+                fflush(stdin);
+            }
+
+            printf(GREEN"\t\t\t%s | Edit Harga <y/n>? ",br.harga);
+            scanf("%s", &yesOrNo);
+            if(yesOrNo=='y' || yesOrNo=='Y'){
+                printf(YELLOW"\t\t\tMasukan Harga baru : ");
+                scanf("%s", &br.harga);
+                fflush(stdin);
+            }
+
+            printf(GREEN"\t\t\t%s | Edit Stok <y/n>? ",br.stok);
+            scanf("%s", &yesOrNo);
+            if(yesOrNo=='y' || yesOrNo=='Y'){
+                printf(YELLOW"\t\t\tMasukan Stok baru : ");
+                scanf("%s", &br.stok);
+                fflush(stdin);
+            }
+        }
+        fwrite(&br, sizeof(barang), 1, fptr1);      ///setelah itu masukan semua data baik yang mengalami perubahan atau tidak kkedalam fptr1
+    }
+    fclose(fptr);
+    fclose(fptr1);
+
+    if(isFound){                            ///apabila data mengalami perubahan
+        fptr = fopen("dataBarang", "w");
+        fptr1 = fopen("helper", "r");
+
+        while(fread(&br,sizeof(barang), 1, fptr1)) fwrite(&br, sizeof(barang), 1, fptr);
+        printf(CYAN"\n\t\t\tData berhasil diubah");
+    }else
+        printf(RED"\n\t\t\tData tidak ditemukan");
+    fclose(fptr);
+    fclose(fptr1);
+}
+
+
+void deleteBarang()
+{   ///untuk menghapus data
+    system("cls");          ///untuk menghapus terminal
+    FILE *fptr, *fptr1;     ///dibutuhkan 2 sebagai utama dan helper
+    barang br;
+    char id[10];
+    bool isDeleted=false;   ///variabel untuk cek apakah data terdelete?
+
+    fptr = fopen("dataBarang", "r");    ///operator "r" artinya hanya untuk dilihat
+    fptr1 = fopen("helper", "w+");      ///operator "w+" artinya file akan ditimpa jika sudah ada, tapi juga dapat dibaca
+
+    printf(GREEN"\n\t\t\tDelete Data");
+    printf(YELLOW"\n\t\t\tMasukan ID barang : ");
+    scanf("%s", &id);
+    fflush(stdin);
+
+    while(fread(&br, sizeof(barang), 1, fptr)){     ///lakukan perulangan pada seluruh data
+        if(strcmp(br.id, id)!=0){                   ///jika data tidak ditemukan
+            fwrite(&br, sizeof(barang), 1, fptr1);  ///tulis data seperti biasa ke file baru
+        }
+        if(strcmp(br.id, id)==0){                   ///jika data ditemukan
+            isDeleted = true;                       ///maka ubah nilai isDelete menjadi true
+        }
+    }
+    fclose(fptr);
+    fclose(fptr1);
+
+    if(isDeleted){              ///jika isDelete true artinya ada file yang dihapus
+        fptr = fopen("dataBarang", "w");    ///maka buka lagi kedua file tadi
+        fptr1 = fopen("helper", "r");
+        while(fread(&br, sizeof(barang), 1, fptr1)){    ///lakukan pemindahan data dari file baru ke dalam file lama (file baru memiliki data yang sudah mengalami penghapusan)
+            fwrite(&br, sizeof(barang), 1, fptr);
+        }
+        printf(CYAN"\n\t\t\tData berhasil di delete");
+    }else
+    {
+        printf(RED"\n\t\t\tData tidak berhasil di delete");
+    }
+    fclose(fptr);
+    fclose(fptr1);
+}
+
+void searchBarang()
+{   ///untuk mencari barang
+    system("cls");
+    FILE *fptr;
+    barang br;
+    int pilih;
+    bool isFound;       ///variable untuk mengecek apakah data ditemukan?
+    char id[10];        ///untuk penyimpanan sementara
+    fptr = fopen("dataBarang", "r");    ///operator "r" artinya data hanya dapat dibaca
+
+    printf(GREEN"\n\t\t\tCari barang");
+    printf(YELLOW"\n\t\t\tMasukan ID barang : ");
+    scanf("%s", &id);
+
+    while(fread(&br, sizeof(barang), 1, fptr)){       ///data akan dimasukan kedalam dt, dan setiap perulangan akan mencetak data sebesar sizeof(data)<byte>
+            if(strcmp(strlwr(br.id), strlwr(id))==0){ ///dari dt yang sudah dimasukan tadi kemudian di cek, menggunakan strcmp(yang jika data sama maka akan me-return 0)
+                isFound=true;                           ///data yang mereturn kan 0 adalah data yang kita cari
+                printf(NORMAL);                         ///jika data ketemu maka set isFound sebagai true
+                printf("\t\t\t-------------------------------------------------\n");
+                printf("\t\t\t| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", "ID", "Nama", "Harga","Stok","Sell");
+                printf("\t\t\t-------------------------------------------------\n");
+                printf("\t\t\t| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", br.id, br.nama, br.harga, br.stok, br.stokTerjual);
+                printf("\t\t\t-------------------------------------------------\n");
+            }
+        }
+        if(!isFound) printf(RED"\n\t\t\tData tidak ditemukan!"NORMAL);
+
+}
+
+void sortingBarang(bool isAscending)
+{
+    int pilihMenu, count=1;
+    int countData=countTotalBarang(); ///untuk menyimpan nilai banyaknya data
+    FILE *fptr;
+    barang br;
+    barang br2[countData];   ///data dari fileHandling akan dimasukan ke dalam data array untuk memudahkan sorting
+    barang temp[1];           ///untuk membantu proses swap data
+    fptr = fopen("dataBarang", "r");
+
+    while(fread(&br, sizeof(barang), 1, fptr))    ///proses pengisian data kedalam array struct dt2
+    {
+        br2[count] = br;    ///data diassigment sesuai index perulangan
+        count++;            ///setiap perulangan terjadi akan menambah count
+    }
+
+    if(isAscending){    ///untuk data dari terkecil
+        for(int x=1; x<=countData; x++){           ///proses sorting
+            for(int y=1; y<=countData-x; y++){
+                if(atoi(br2[y].stok) > atoi(br2[y+1].stok)){  ///disini akan membandingkan nilai dari nim, karena nim memiliki tipe string. maka dilakukan convert to int menggunakan fungsi atoi
+                    temp[1] = br2[y];                 ///jika data y lebih kecil dari y-1 maka lakukan swap
+                    br2[y] = br2[y+1];
+                    br2[y+1] = temp[1];
+                }
+            }
+        }
+    }else           ///untuk data dari terbesar
+    {
+        for(int x=1; x<=countData; x++){
+            for(int y=1; y<=countData-x; y++){
+                if(atoi(br2[y].stok) < atoi(br2[y+1].stok)){
+                    temp[1] = br2[y];
+                    br2[y] = br2[y+1];
+                    br2[y+1] = temp[1];
+                }
+            }
+        }
+    }
+    printf(NORMAL);
+    printf("\t\t\t------------------------------------------------------\n");
+    printf("\t\t\t|"CYAN"%-4s"NORMAL"| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", " No", "ID", "Nama", "Harga","Stok","Sell");
+    printf("\t\t\t------------------------------------------------------\n");
+    for(int x=1; x<=countData; x++){
+        printf("\t\t\t| "CYAN"%-3d"NORMAL"| "CYAN"%-5s%-15s%-10s%-8s%-8s"NORMAL"|\n", x, br2[x].id, br2[x].nama, br2[x].harga, br2[x].stok, br2[x].stokTerjual);
+    }
+    printf("\t\t\t------------------------------------------------------\n");
+}
+
+void kasir()
+{
+    //system("cls");
+    FILE *fptr, *fptr1;     ///dibuat 2 file pointer
+    barang br;
+    char id[10];
+    int quantity;
+    bool isFound=false;
+
+    fptr = fopen("dataBarang", "r");        ///ini sama seperti edit barang, tapi yang diedit hanya stok dan stok terjual
+    fptr1 = fopen("helper", "w");
+
+    printf(YELLOW"\n\t\t\tMasukan ID barang : ");
+    scanf("%s", &id);
+    fflush(stdin);
+
+    while(fread(&br, sizeof(barang), 1, fptr)){     ///lakukan perulangan pada semua data
+        if(strcmp(strlwr(br.id), strlwr(id))==0){   ///jika ditemukan data target
+            isFound=true;
+            printf(YELLOW"\t\t\tMasukan Quantity : ");  ///input qty yang di inginkan
+            scanf("%d", &quantity);
+            fflush(stdin);
+                                                                ///*atoi(string to int)
+            int stok = atoi(br.stok) - quantity;                ///stok didapat dari pengurangan stok dengan quantity
+            int stokTerjual = atoi(br.stokTerjual) + quantity;  ///stok terjual dari stok terjual + quantity
+
+            if(stok>=0){            ///jika stok belum habis maka
+                itoa(stokTerjual, br.stokTerjual, 10);  ///*itoa(int, string, buffer) itoa akan mengubah nilai yang semula int menjadi string
+                itoa(stok, br.stok, 10);                ///itoa(a, b, x) nilai pada int a akan di assigment ke b dalam bentuk string.
+            }else{
+                printf(RED"\n\t\t\tStok tidak cukup!"); ///jika stok tidak memenuhi
+                goto failed;    ///maka pergi ke failed ->
+            }
+
+        }
+        fwrite(&br, sizeof(barang), 1, fptr1);  ///masukan data kembali ke file sementara
+    }
+    fclose(fptr);
+    fclose(fptr1);
+
+    if(isFound){                            ///jika true berarti ada perubahan
+        fptr = fopen("dataBarang", "w");
+        fptr1 = fopen("helper", "r");
+
+        while(fread(&br,sizeof(barang), 1, fptr1)) fwrite(&br, sizeof(barang), 1, fptr);    ///lakukan pengcopy-an data dari helper ke database utama
+        printf(CYAN"\n\t\t\tTransaksi berhasil");
+    }else
+        failed :            ///-------------------failed berada disini <-
+        printf(RED"\n\t\t\tTransaksi gagal");
+    fclose(fptr);
+    fclose(fptr1);
+}
+
+int main()
+{
+    int pilih;
+    bool isExit=false;
+
+    while(!isExit){
+        system("cls");
+        printf(NORMAL);
+        printf("\n\t\t\t---------------------------------");
+        printf("\n\t\t\t|| "GREEN"Koperasi IT Telkom Surabaya"NORMAL" ||");
+        printf("\n\t\t\t---------------------------------\n");
+        printf("\n\t\t\t1. Barang");
+        printf("\n\t\t\t2. Kasir");
+        printf("\n\t\t\t3. Urutkan");
+        printf(RED"\n\t\t\t4. Exit");
+        printf(YELLOW"\n\t\t\tPilih menu mana? ");
+        scanf("%d", &pilih);
+        printf(NORMAL);
+
+        if(pilih==1){
+            system("cls");
+            printf("\n\t\t\t"GREEN"Data Barang\n"NORMAL);
+            show(true);
+
+            printf("\n\t\t\t1. Tambah barang");
+            printf("\n\t\t\t2. Edit barang");
+            printf("\n\t\t\t3. Delete barang");
+            printf("\n\t\t\t4. Cari barang");
+            printf(RED"\n\t\t\t5. Back");
+            printf(YELLOW"\n\t\t\tPilih menu mana? ");
+            scanf("%d", &pilih);
+            printf(NORMAL);
+
+            if(pilih==1){
+                addBarang();
+            }else
+            if(pilih==2){
+                editBarang();
+            }else
+            if(pilih==3){
+                deleteBarang();
+            }else
+            if(pilih==4){
+                searchBarang();
+                printf("\n\t\t\t");
+                system("pause");
+            }else{}
+
+        }else
+        if(pilih==2){
+            system("cls");
+            printf(GREEN"\n\t\t\t| Kasir Koperasi ITTS |\n");
+            show(false);
+            kasir();
+            printf("\n\t\t\t");
+            system("pause");
+        }else
+        if(pilih==3){
+            system("cls");
+            printf("\n\t\t\t"GREEN"Urutkan\n"NORMAL);
+
+            printf("\n\t\t\t1. Barang terbaru");
+            printf("\n\t\t\t2. Barang terlama");
+            printf("\n\t\t\t3. Stok terendah");
+            printf("\n\t\t\t4. Stok terbanyak");
+            printf(RED"\n\t\t\t5. Back");
+            printf(YELLOW"\n\t\t\tPilih menu mana? ");
+            scanf("%d", &pilih);
+            printf(NORMAL);
+
+            if(pilih==1){
+                system("cls");
+                printf(GREEN"\n\t\t\tBarang terbaru\n");
+                show(false);
+            }else
+            if(pilih==2){
+                system("cls");
+                printf(GREEN"\n\t\t\tBarang terlama\n");
+                show(true);
+            }else
+            if(pilih==3){
+                system("cls");
+                printf(GREEN"\n\t\t\tStok terendah\n");
+                sortingBarang(true);
+            }else
+            if(pilih==4){
+                system("cls");
+                printf(GREEN"\n\t\t\tStok terbanyak\n");
+                sortingBarang(false);
+            }else{}
+
+        printf("\n\t\t\t");
+        system("pause");
+        }else{
+            exit(0);
+        }
+    }
+}
